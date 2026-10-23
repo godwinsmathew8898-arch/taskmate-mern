@@ -1,10 +1,13 @@
 import express from "express";
-import dotenv  from "dotenv";
+import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 
 dotenv.config();
 const app = express();
 app.use(express.json());
+
+// Task routes
+app.use("/api/tasks", taskRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
