@@ -118,5 +118,49 @@ export const deleteTask = async (req, res) => {
   }
 };
 
+// UPDATE TASK
+export const updateTask = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    if (!mongoose.isObjectIdOrHexString(id)) {
+      return res.status(400).json({
+        message: "Invalid task ID",
+      });
+    }
 
+    const { title, description, completed, priority } = req.body;
+    sk;
+    const task = await Task.findByIdAndUpdate(
+      id,
+      { title, description, completed, priority },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Task updated successfully",
+      task,
+    });
+  } catch (error) {
+    if (error.name === "ValidationError" || error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid task data",
+      });
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};

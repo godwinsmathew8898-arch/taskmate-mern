@@ -20,4 +20,7 @@ router.get("/:id", getTaskById);
 // Delete task
 router.delete("/:id", deleteTask);
 
+// Update task
+router.patch("/:id", updateTask);
+
 export default router;
