@@ -15,10 +15,22 @@ function App() {
 
   const [editingId, setEditingId] = useState(null);
 
+  const [filter, setFilter] = useState("all");
+  const [busyTaskId, setBusyTaskId] = useState(null);
+  const [theme, setTheme] = useState("light");
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setEditingId(null);
+  };
+
   // Load tasks from backend
   useEffect(() => {
     const loadTasks = async () => {
       try {
+        setError("");
         const data = await getTasks();
         setTasks(data.tasks);
       } catch (error) {
@@ -33,6 +45,7 @@ function App() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving || busyTaskId) return;
 
     if (!title.trim()) {
       setError("Task title is required");
@@ -66,10 +79,7 @@ function App() {
       }
 
       // Clear form after success
-      setTitle("");
-      setDescription("");
-      setPriority("medium");
-      setEditingId(null);
+      resetForm();
     } catch (error) {
       setError(error.message);
     } finally {
@@ -78,7 +88,10 @@ function App() {
   };
 
   const handleToggleComplete = async (task) => {
+    if (busyTaskId || saving) return;
+
     try {
+      setBusyTaskId(task._id);
       setError("");
 
       const data = await updateTask(task._id, {
@@ -90,10 +103,13 @@ function App() {
       );
     } catch (error) {
       setError(error.message);
+    } finally {
+      setBusyTaskId(null);
     }
   };
 
   const handleEdit = (task) => {
+    if (saving || busyTaskId) return;
     setEditingId(task._id);
 
     setTitle(task.title);
@@ -107,6 +123,7 @@ function App() {
   };
 
   const handleDelete = async (id) => {
+    if (busyTaskId || saving) return;
     const confirmed = window.confirm(
       "Are you sure you want to delete this task?",
     );
@@ -116,6 +133,7 @@ function App() {
     }
 
     try {
+      setBusyTaskId(id);
       setError("");
 
       await deleteTask(id);
@@ -126,35 +144,72 @@ function App() {
 
       // Clear the form if the deleted task was being edited
       if (editingId === id) {
-        setEditingId(null);
-        setTitle("");
-        setDescription("");
-        setPriority("medium");
+        resetForm();
       }
     } catch (error) {
       setError(error.message);
+    } finally {
+      setBusyTaskId(null);
     }
   };
 
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.completed).length;
+  const pendingTasks = totalTasks - completedTasks;
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === "completed") return task.completed;
+    if (filter === "pending") return !task.completed;
+    return true;
+  });
+
+  const toggleTheme = () => {
+    setTheme((previousTheme) => previousTheme === "light" ? "dark" : "light");
+  };
+
   return (
-    <div className="min-h-screen bg-base-200 p-6">
+    <div data-theme={theme} className="min-h-screen bg-base-200 text-base-content p-6">
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-primary">TaskMate</h1>
 
           <p className="mt-2 opacity-70">Organize your tasks efficiently.</p>
+          <button type="button" className="btn btn-outline mt-4" onClick={toggleTheme}>
+            {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+          </button>
         </header>
+
+        <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="card bg-base-100 shadow-md">
+            <div className="card-body">
+              <h2 className="text-sm opacity-70">Total Tasks</h2>
+              <p className="text-3xl font-bold">{totalTasks}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 shadow-md">
+            <div className="card-body">
+              <h2 className="text-sm opacity-70">Completed</h2>
+              <p className="text-3xl font-bold text-success">{completedTasks}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 shadow-md">
+            <div className="card-body">
+              <h2 className="text-sm opacity-70">Pending</h2>
+              <p className="text-3xl font-bold text-warning">{pendingTasks}</p>
+            </div>
+          </div>
+        </section>
 
         {/* Add Task Form */}
         <div className="card mb-6 bg-base-100 shadow-lg">
           <div className="card-body">
-            <h2 className="card-title">Add New Task</h2>
+            <h2 className="card-title">{editingId ? "Edit Task" : "Add New Task"}</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
                 placeholder="Task title"
                 className="input w-full"
+                disabled={saving}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={100}
@@ -164,12 +219,14 @@ function App() {
               <textarea
                 placeholder="Task description"
                 className="textarea w-full"
+                disabled={saving}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
 
               <select
                 className="select w-full"
+                disabled={saving}
                 value={priority}
                 onChange={(event) => setPriority(event.target.value)}
               >
@@ -181,7 +238,7 @@ function App() {
               <button
                 type="submit"
                 className="btn btn-primary w-full"
-                disabled={saving}
+                disabled={saving || Boolean(busyTaskId)}
               >
                 {saving ? "Saving..." : editingId ? "Update Task" : "Add Task"}
               </button>
@@ -190,12 +247,7 @@ function App() {
                   type="button"
                   className="btn btn-ghost w-full"
                   disabled={saving}
-                  onClick={() => {
-                    setEditingId(null);
-                    setTitle("");
-                    setDescription("");
-                    setPriority("medium");
-                  }}
+                  onClick={resetForm}
                 >
                   Cancel Editing
                 </button>
@@ -206,22 +258,41 @@ function App() {
 
         {error && (
           <div role="alert" className="alert alert-error mb-4">
-            {error}
+            <span>{error}</span>
+            <button type="button" className="btn btn-sm" onClick={() => setError("")}>
+              Dismiss
+            </button>
           </div>
         )}
 
         {/* Task List */}
         <div className="card bg-base-100 shadow-lg">
           <div className="card-body">
-            <h2 className="card-title">My Tasks</h2>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+              <h2 className="card-title">My Tasks</h2>
+              <div className="flex flex-wrap gap-2">
+                {["all", "pending", "completed"].map((option) => (
+                  <button
+                    type="button"
+                    key={option}
+                    onClick={() => setFilter(option)}
+                    className={`btn btn-sm ${filter === option ? "btn-primary" : "btn-outline"}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {loading ? (
-              <p>Loading tasks...</p>
-            ) : tasks.length === 0 ? (
-              <p>No tasks yet. Add your first task!</p>
+              <div role="status" aria-label="Loading tasks" className="flex justify-center py-10">
+                <span className="loading loading-spinner loading-lg text-primary"></span>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <p>{tasks.length === 0 ? "No tasks yet. Add your first task!" : "No tasks match this filter."}</p>
             ) : (
               <div className="space-y-3">
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                   <div
                     key={task._id}
                     className="rounded-lg border border-base-300 p-4"
@@ -231,21 +302,23 @@ function App() {
                       <input
                         type="checkbox"
                         className="checkbox checkbox-success mt-1"
+                        aria-label={`Mark ${task.title} as ${task.completed ? "pending" : "completed"}`}
+                        disabled={Boolean(busyTaskId) || saving}
                         checked={task.completed}
                         onChange={() => handleToggleComplete(task)}
                       />
 
                       {/* Task information */}
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <h3
-                          className={`font-semibold ${
+                          className={`font-semibold break-words ${
                             task.completed ? "line-through opacity-50" : ""
                           }`}
                         >
                           {task.title}
                         </h3>
 
-                        <p className="mt-1 text-sm opacity-70">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm opacity-70">
                           {task.description}
                         </p>
 
@@ -271,6 +344,7 @@ function App() {
                     <div className="mt-4 flex justify-end gap-2">
                       <button
                         className="btn btn-sm btn-outline"
+                        disabled={Boolean(busyTaskId) || saving}
                         onClick={() => handleEdit(task)}
                       >
                         Edit
@@ -278,9 +352,10 @@ function App() {
 
                       <button
                         className="btn btn-sm btn-error"
+                        disabled={Boolean(busyTaskId) || saving}
                         onClick={() => handleDelete(task._id)}
                       >
-                        Delete
+                        {busyTaskId === task._id ? "Working..." : "Delete"}
                       </button>
                     </div>
                   </div>
@@ -289,6 +364,9 @@ function App() {
             )}
           </div>
         </div>
+        <footer className="mt-10 text-center text-sm opacity-60">
+          TaskMate — Built with the MERN Stack
+        </footer>
       </div>
     </div>
   );
