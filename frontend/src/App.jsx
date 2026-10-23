@@ -106,6 +106,36 @@ function App() {
     });
   };
 
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this task?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+
+      await deleteTask(id);
+
+      setTasks((previousTasks) =>
+        previousTasks.filter((task) => task._id !== id),
+      );
+
+      // Clear the form if the deleted task was being edited
+      if (editingId === id) {
+        setEditingId(null);
+        setTitle("");
+        setDescription("");
+        setPriority("medium");
+      }
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-base-200 p-6">
       <div className="mx-auto max-w-3xl">
@@ -196,34 +226,62 @@ function App() {
                     key={task._id}
                     className="rounded-lg border border-base-300 p-4"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3">
+                      {/* Complete checkbox */}
                       <input
                         type="checkbox"
-                        className="checkbox checkbox-success"
+                        className="checkbox checkbox-success mt-1"
                         checked={task.completed}
                         onChange={() => handleToggleComplete(task)}
                       />
-                      <h3 className="font-semibold">{task.title}</h3>
+
+                      {/* Task information */}
+                      <div className="flex-1">
+                        <h3
+                          className={`font-semibold ${
+                            task.completed ? "line-through opacity-50" : ""
+                          }`}
+                        >
+                          {task.title}
+                        </h3>
+
+                        <p className="mt-1 text-sm opacity-70">
+                          {task.description}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="badge badge-primary">
+                            {task.priority}
+                          </span>
+
+                          <span
+                            className={
+                              task.completed
+                                ? "badge badge-success"
+                                : "badge badge-warning"
+                            }
+                          >
+                            {task.completed ? "Completed" : "Pending"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <p className="mt-1 text-sm opacity-70">
-                      {task.description}
-                    </p>
-
-                    <div className="mt-3 flex gap-2">
-                      <span className="badge badge-primary">
-                        {task.priority}
-                      </span>
-
-                      <span
-                        className={
-                          task.completed
-                            ? "badge badge-success"
-                            : "badge badge-warning"
-                        }
+                    {/* Action buttons */}
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={() => handleEdit(task)}
                       >
-                        {task.completed ? "Completed" : "Pending"}
-                      </span>
+                        Edit
+                      </button>
+
+                      <button
+                        className="btn btn-sm btn-error"
+                        onClick={() => handleDelete(task._id)}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
