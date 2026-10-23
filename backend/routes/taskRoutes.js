@@ -3,6 +3,7 @@ import express from "express";
 import {
   createTask,
   getTasks,
+  deleteTask,
 } from "../controllers/taskController.js";
 
 const router = express.Router();
@@ -15,5 +16,8 @@ router.get("/", getTasks);
 
 // Get one task
 router.get("/:id", getTaskById);
+
+// Delete task
+router.delete("/:id", deleteTask);
 
 export default router;
