@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getTasks, createTask } from "./api/taskApi";
+import { getTasks, createTask, updateTask, deleteTask } from "./api/taskApi";
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -61,6 +61,24 @@ function App() {
       setSaving(false);
     }
   };
+
+  const handleToggleComplete = async (task) => {
+  try {
+    setError("");
+
+    const data = await updateTask(task._id, {
+      completed: !task.completed,
+    });
+
+    setTasks((previousTasks) =>
+      previousTasks.map((item) =>
+        item._id === task._id ? data.task : item
+      )
+    );
+  } catch (error) {
+    setError(error.message);
+  }
+};
 
   return (
     <div className="min-h-screen bg-base-200 p-6">
@@ -137,7 +155,15 @@ function App() {
                     key={task._id}
                     className="rounded-lg border border-base-300 p-4"
                   >
-                    <h3 className="font-semibold">{task.title}</h3>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-success"
+                        checked={task.completed}
+                        onChange={() => handleToggleComplete(task)}
+                      />
+                      <h3 className="font-semibold">{task.title}</h3>
+                    </div>
 
                     <p className="mt-1 text-sm opacity-70">
                       {task.description}
