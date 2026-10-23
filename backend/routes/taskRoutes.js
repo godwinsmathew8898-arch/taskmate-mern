@@ -13,4 +13,7 @@ router.post("/", createTask);
 // GET /api/tasks
 router.get("/", getTasks);
 
+// Get one task
+router.get("/:id", getTaskById);
+
 export default router;
