@@ -13,6 +13,8 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [editingId, setEditingId] = useState(null);
+
   // Load tasks from backend
   useEffect(() => {
     const loadTasks = async () => {
@@ -29,12 +31,11 @@ function App() {
     loadTasks();
   }, []);
 
-  // Add new task
-  const handleAddTask = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!title.trim()) {
-      setError("Please enter a task title");
+      setError("Task title is required");
       return;
     }
 
@@ -42,19 +43,33 @@ function App() {
       setSaving(true);
       setError("");
 
-      const data = await createTask({
+      const taskData = {
         title,
         description,
         priority,
-      });
+      };
 
-      // Add new task to the beginning of the list
-      setTasks((previousTasks) => [data.task, ...previousTasks]);
+      if (editingId) {
+        // UPDATE EXISTING TASK
+        const data = await updateTask(editingId, taskData);
 
-      // Clear form
+        setTasks((previousTasks) =>
+          previousTasks.map((task) =>
+            task._id === editingId ? data.task : task,
+          ),
+        );
+      } else {
+        // CREATE NEW TASK
+        const data = await createTask(taskData);
+
+        setTasks((previousTasks) => [data.task, ...previousTasks]);
+      }
+
+      // Clear form after success
       setTitle("");
       setDescription("");
       setPriority("medium");
+      setEditingId(null);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -63,22 +78,33 @@ function App() {
   };
 
   const handleToggleComplete = async (task) => {
-  try {
-    setError("");
+    try {
+      setError("");
 
-    const data = await updateTask(task._id, {
-      completed: !task.completed,
+      const data = await updateTask(task._id, {
+        completed: !task.completed,
+      });
+
+      setTasks((previousTasks) =>
+        previousTasks.map((item) => (item._id === task._id ? data.task : item)),
+      );
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleEdit = (task) => {
+    setEditingId(task._id);
+
+    setTitle(task.title);
+    setDescription(task.description);
+    setPriority(task.priority);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
     });
-
-    setTasks((previousTasks) =>
-      previousTasks.map((item) =>
-        item._id === task._id ? data.task : item
-      )
-    );
-  } catch (error) {
-    setError(error.message);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-base-200 p-6">
@@ -94,7 +120,7 @@ function App() {
           <div className="card-body">
             <h2 className="card-title">Add New Task</h2>
 
-            <form onSubmit={handleAddTask} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
                 placeholder="Task title"
@@ -127,8 +153,23 @@ function App() {
                 className="btn btn-primary w-full"
                 disabled={saving}
               >
-                {saving ? "Adding..." : "Add Task"}
+                {saving ? "Saving..." : editingId ? "Update Task" : "Add Task"}
               </button>
+              {editingId && (
+                <button
+                  type="button"
+                  className="btn btn-ghost w-full"
+                  disabled={saving}
+                  onClick={() => {
+                    setEditingId(null);
+                    setTitle("");
+                    setDescription("");
+                    setPriority("medium");
+                  }}
+                >
+                  Cancel Editing
+                </button>
+              )}
             </form>
           </div>
         </div>
