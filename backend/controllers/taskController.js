@@ -1,4 +1,6 @@
-import Task from "../models/taskModel";
+import mongoose from "mongoose";
+
+import Task from "../models/taskModel.js";
 
 // CREATE TASK
 export const createTask = async (req, res) => {
@@ -130,7 +132,7 @@ export const updateTask = async (req, res) => {
     }
 
     const { title, description, completed, priority } = req.body;
-    sk;
+
     const task = await Task.findByIdAndUpdate(
       id,
       { title, description, completed, priority },
